@@ -42,8 +42,6 @@ class CppMicroServicesConan(ConanFile):
         # Upstream only adds the full compendium when threading + shared libs are both on.
         return bool(self.options.shared and self.options.with_threading)
 
-    # ── lifecycle ──────────────────────────────────────────────────────────────
-
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC
@@ -59,10 +57,6 @@ class CppMicroServicesConan(ConanFile):
         for opt_name in self.options["boost"].__dict__:
             if opt_name.startswith("without_") and opt_name != "without_nowide":
                 setattr(self.options["boost"], opt_name, True)
-
-        # In CppMicroServices we use the header-only version of Boost
-        # self.options["boost"].header_only = True
-        # self.options["boost"].without_nowide = True
 
     def layout(self):
         cmake_layout(self, src_folder="src")
@@ -109,12 +103,9 @@ class CppMicroServicesConan(ConanFile):
     def source(self):
         git = Git(self)
         if self._dev_branch:
-            # git.clone(url=self.url, args=["--recursive", "--branch",
-            #          self._dev_branch, "--single-branch", "--depth", "1"], target=".")
+            git.clone(url=self.url, args=["--recursive", "--branch",
+                      self._dev_branch, "--single-branch", "--depth", "1"], target=".")
 
-            # Temporarily jsut copy from my local directory
-            copy(self, "*", src="C:/Dev/CppMicroServices_Test",
-                 dst=os.path.join(self.source_folder, "."))
         else:
             git.clone(url=self.url, args=[
                       "--recursive"], target="src")
