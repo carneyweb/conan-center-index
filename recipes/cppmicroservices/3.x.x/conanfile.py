@@ -234,6 +234,12 @@ class CppMicroServicesConan(ConanFile):
         if self.options.with_threading and self.settings.os != "Windows":
             fw.system_libs.append("pthread")
 
+        # For static builds, consumers must link the transitive deps that are
+        # baked into the shared library in the shared case.
+        if not self.options.shared:
+            fw.requires = ["miniz::miniz", "spdlog::spdlog",
+                           "jsoncpp::jsoncpp", "rapidjson::rapidjson"]
+
         # LogService (INTERFACE / header-only upstream — no compiled library)
         ls = self.cpp_info.components["logservice"]
         ls.set_property("cmake_target_name", "usLogService")
