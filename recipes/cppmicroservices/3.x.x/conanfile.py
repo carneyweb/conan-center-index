@@ -4,7 +4,7 @@ from conan import ConanFile
 from conan.tools.cmake import CMake, CMakeDeps, CMakeToolchain, cmake_layout
 from conan.tools.build import check_min_cppstd
 from conan.tools.files import copy, get
-from conan.tools.scm import Git
+from conan.tools.scm import Git, Version
 from conan.errors import ConanInvalidConfiguration, ConanException
 
 
@@ -13,15 +13,14 @@ class CppMicroServicesConan(ConanFile):
     version = "3.8.10"
     description = "An OSGi-inspired dynamic module framework for C++"
     license = "Apache-2.0"
-    url = "https://github.com/CppMicroServices/CppMicroServices"
+    url = "https://github.com/conan-io/conan-center-index"
     homepage = "https://cppmicroservices.org"
     topics = ("modularity", "runtime linking", "dependency inversion",
               "service oriented", "osgi", "microservices", "cross-platform")
-    license = "Apache-2.0"
     no_copy_source = True
     settings = "os", "arch", "compiler", "build_type"
 
-    # package_type = "library"
+    package_type = "library"
 
     options = {
         "shared":         [True, False],
@@ -34,6 +33,7 @@ class CppMicroServicesConan(ConanFile):
         "with_threading": True,
     }
 
+    _source_url = "https://github.com/CppMicroServices/CppMicroServices"
     # Set this to None to build from the latest commit on the specified branch instead of a release tag.
     _dev_branch = "conan-support"
 
@@ -47,9 +47,6 @@ class CppMicroServicesConan(ConanFile):
             del self.options.fPIC
 
     def configure(self):
-        os.environ["CMAKE_POLICY_VERSION_MINIMUM"] = "3.17"
-        if self.settings.os == "Linux":
-            os.environ["CXXFLAGS"] = "-Wno-maybe-uninitialized"
         if self.options.shared:
             self.options.rm_safe("fPIC")
 
@@ -93,7 +90,7 @@ class CppMicroServicesConan(ConanFile):
         }
         compiler = str(self.settings.compiler)
         min_ver = min_versions.get(compiler)
-        if min_ver and str(self.settings.compiler.version) < min_ver:
+        if min_ver and Version(str(self.settings.compiler.version)) < min_ver:
             raise ConanInvalidConfiguration(
                 f"{self.ref} requires {compiler} >= {min_ver}, "
                 f"got {self.settings.compiler.version}"
@@ -103,11 +100,11 @@ class CppMicroServicesConan(ConanFile):
     def source(self):
         git = Git(self)
         if self._dev_branch:
-            git.clone(url=self.url, args=["--recursive", "--branch",
+            git.clone(url=self._source_url, args=["--recursive", "--branch",
                       self._dev_branch, "--single-branch", "--depth", "1"], target=".")
 
         else:
-            git.clone(url=self.url, args=[
+            git.clone(url=self._source_url, args=[
                       "--recursive"], target="src")
             git.checkout(
                 commit=self.conan_data["sources"][self.version]["sha1"])
@@ -124,6 +121,9 @@ class CppMicroServicesConan(ConanFile):
     # generate is where we set CMake variables and generate both the CMakeToolchain and CMakeDeps files.
     def generate(self):
         tc = CMakeToolchain(self)
+        tc.cache_variables["CMAKE_POLICY_VERSION_MINIMUM"] = "3.17"
+        if self.settings.os == "Linux":
+            tc.extra_cxxflags.append("-Wno-maybe-uninitialized")
         tc.variables["CMAKE_BUILD_TYPE"] = str(self.settings.build_type)
         tc.variables["BUILD_SHARED_LIBS"] = self.options.shared
         tc.variables["US_ENABLE_THREADING_SUPPORT"] = self.options.with_threading
