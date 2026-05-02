@@ -50,10 +50,24 @@ class CppMicroServicesConan(ConanFile):
         if self.options.shared:
             self.options.rm_safe("fPIC")
 
-        # CppMicroServices only uses Boost.Nowide headers (fstream, args) — no
-        # compiled Boost libraries are needed.  Header-only mode avoids having to
-        # build (and maintain the disable-list for) dozens of unused Boost libs.
-        self.options["boost"].header_only = True
+        # CppMicroServices only uses Boost.Nowide.  On Unix nowide is
+        # header-only so we can skip all compiled Boost libs.  On Windows
+        # nowide has compiled sources, so we build it and its transitive deps
+        # (filesystem, atomic, system) while disabling everything else.
+        if self.settings.os != "Windows":
+            self.options["boost"].header_only = True
+        else:
+            _boost_keep = {"nowide", "filesystem", "atomic", "system"}
+            for lib in ("atomic", "charconv", "chrono", "cobalt", "container",
+                        "context", "contract", "coroutine", "date_time",
+                        "exception", "fiber", "filesystem", "graph",
+                        "graph_parallel", "iostreams", "json", "locale",
+                        "log", "math", "mpi", "nowide", "process",
+                        "program_options", "python", "random", "regex",
+                        "serialization", "stacktrace", "system", "test",
+                        "thread", "timer", "type_erasure", "url", "wave"):
+                if lib not in _boost_keep:
+                    setattr(self.options["boost"], f"without_{lib}", True)
 
     def layout(self):
         cmake_layout(self, src_folder="src")
