@@ -53,10 +53,10 @@ class CppMicroServicesConan(ConanFile):
         if self.options.shared:
             self.options.rm_safe("fPIC")
 
-        # Disable all compiled Boost libraries except nowide
-        for opt_name in self.options["boost"].__dict__:
-            if opt_name.startswith("without_") and opt_name != "without_nowide":
-                setattr(self.options["boost"], opt_name, True)
+        # CppMicroServices only uses Boost.Nowide headers (fstream, args) — no
+        # compiled Boost libraries are needed.  Header-only mode avoids having to
+        # build (and maintain the disable-list for) dozens of unused Boost libs.
+        self.options["boost"].header_only = True
 
     def layout(self):
         cmake_layout(self, src_folder="src")
@@ -201,11 +201,16 @@ class CppMicroServicesConan(ConanFile):
         lib_dir = os.path.join(self.package_folder, "lib")
 
         def find_lib(prefix):
-            # Find the actual installed lib name matching a prefix
+            # Find the installed lib matching a prefix and return the bare
+            # logical name for cpp_info.libs.  On Unix, filenames look like
+            # lib<Name>.X.Y.Z.<ext> — strip the "lib" prefix and version
+            # suffixes so we match against the logical name.
             for f in os.listdir(lib_dir):
-                name = os.path.splitext(f)[0]  # strip .lib/.a
-                if name.startswith(prefix):
-                    return name
+                bare = f.split(".")[0]
+                if bare.startswith("lib"):
+                    bare = bare[3:]
+                if bare.startswith(prefix):
+                    return bare
             raise ConanException(
                 f"Could not find lib with prefix '{prefix}' in {lib_dir}")
 
@@ -229,10 +234,9 @@ class CppMicroServicesConan(ConanFile):
         if self.options.with_threading and self.settings.os != "Windows":
             fw.system_libs.append("pthread")
 
-        # LogService
+        # LogService (INTERFACE / header-only upstream — no compiled library)
         ls = self.cpp_info.components["logservice"]
         ls.set_property("cmake_target_name", "usLogService")
-        ls.libs = [find_lib("LogService")]
         ls.requires = ["framework"]
 
         # Full compendium (threading=ON and shared=ON only)
